@@ -1,0 +1,541 @@
+openapi: 3.0.3
+info:
+  title: Trello Clone API
+  version: 1.0.0
+  description: |
+    REST API for the Trello-style workspace that powers the Laravel backend. All
+    authenticated requests use Sanctum personal access tokens via the `Authorization: Bearer`
+    header. Broadcasting events are published on `projects.{projectId}` channels.
+servers:
+  - url: https://example.com/api
+  - url: http://localhost/api
+components:
+  securitySchemes:
+    SanctumToken:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        owner_id:
+          type: integer
+        boards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Board'
+      required: [id, name]
+    Board:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        position:
+          type: integer
+        lists:
+          type: array
+          items:
+            $ref: '#/components/schemas/List'
+    List:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        position:
+          type: integer
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Card'
+    Card:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        position:
+          type: integer
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived:
+          type: boolean
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user and issue a Sanctum token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                password_confirmation:
+                  type: string
+      responses:
+        '201':
+          description: Registered
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Exchange credentials for a Sanctum token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Authenticated
+  /auth/me:
+    get:
+      security:
+        - SanctumToken: []
+      tags: [Authentication]
+      summary: Retrieve the authenticated profile and visible projects.
+      responses:
+        '200':
+          description: Profile response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /auth/logout:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Authentication]
+      summary: Revoke the current access token.
+      responses:
+        '204':
+          description: Logged out
+  /projects:
+    get:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: List projects the user can access.
+      responses:
+        '200':
+          description: Collection of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: Create a new project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+  /projects/{project}:
+    get:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: Retrieve a single project with nested boards/lists/cards.
+      parameters:
+        - in: path
+          name: project
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+    put:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: Update project metadata.
+      parameters:
+        - in: path
+          name: project
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                slug:
+                  type: string
+      responses:
+        '200':
+          description: Updated project
+    delete:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: Delete a project (owner only).
+      parameters:
+        - in: path
+          name: project
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+  /projects/{project}/activity:
+    get:
+      security:
+        - SanctumToken: []
+      tags: [Projects]
+      summary: Activity feed for the project.
+      parameters:
+        - in: path
+          name: project
+          required: true
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated activity collection
+  /projects/{project}/members:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Members]
+      summary: Invite an existing user to a project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, role]
+              properties:
+                user_id:
+                  type: integer
+                role:
+                  type: string
+                  enum: [owner, admin, member, viewer]
+      responses:
+        '201':
+          description: Member added
+  /projects/{project}/members/{user}:
+    patch:
+      security:
+        - SanctumToken: []
+      tags: [Members]
+      summary: Update a member role.
+      parameters:
+        - in: path
+          name: project
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: user
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [owner, admin, member, viewer]
+      responses:
+        '200':
+          description: Updated role
+    delete:
+      security:
+        - SanctumToken: []
+      tags: [Members]
+      summary: Remove a member from the project.
+      responses:
+        '204':
+          description: Removed
+  /projects/{project}/boards:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Boards]
+      summary: Create a board within a project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                color:
+                  type: string
+      responses:
+        '201':
+          description: Board created
+  /projects/{project}/boards/reorder:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Boards]
+      summary: Reorder boards within a project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [board_ids]
+              properties:
+                board_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Updated ordering
+  /boards/{board}/lists:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Lists]
+      summary: Create a list on a board.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: List created
+  /boards/{board}/lists/reorder:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Lists]
+      summary: Reorder the lists on a board.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [list_ids]
+              properties:
+                list_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Updated ordering
+  /lists/{list}/cards:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Cards]
+      summary: Create a card within a list.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                due_at:
+                  type: string
+                  format: date-time
+                assignee_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '201':
+          description: Card created
+  /lists/{list}/cards/reorder:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Cards]
+      summary: Update ordering (and list) for cards after drag and drop.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [card_ids]
+              properties:
+                card_ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Reordered cards
+  /lists/{list}/cards/import:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Cards]
+      summary: Import cards from a CSV upload.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Cards imported
+  /cards/{card}/attachments:
+    post:
+      security:
+        - SanctumToken: []
+      tags: [Attachments]
+      summary: Upload an attachment to a card.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Attachment created
+    delete:
+      security:
+        - SanctumToken: []
+      tags: [Attachments]
+      summary: Remove an attachment from a card.
+      parameters:
+        - in: path
+          name: card
+          required: true
+          schema:
+            type: integer
+        - in: path
+          name: attachment
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+security:
+  - SanctumToken: []
