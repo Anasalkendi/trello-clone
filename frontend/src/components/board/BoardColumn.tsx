@@ -1,4 +1,5 @@
-import { useDroppable, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMemo } from 'react';
 import type { BoardList } from '../../types';
 import { BoardCard } from './BoardCard';

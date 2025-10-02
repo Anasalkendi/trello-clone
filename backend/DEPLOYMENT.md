@@ -1,6 +1,6 @@
 # Deployment Notes (cPanel)
 
-These steps document how to deploy the Laravel backend on a typical cPanel shared hosting environment.
+These steps document how to deploy the Laravel backend on a typical cPanel shared hosting environment. For an end-to-end Hostinger example (including the Vite frontend and automated Git pulls) see the repository-level [`DEPLOYMENT.md`](../DEPLOYMENT.md).
 
 ## Requirements
 
