@@ -12,6 +12,8 @@ fi
 : "${BACKEND_DEPLOY_PATH:?Set BACKEND_DEPLOY_PATH in $CONFIG_FILE}"
 : "${FRONTEND_PUBLIC_PATH:?Set FRONTEND_PUBLIC_PATH in $CONFIG_FILE}"
 
+BACKEND_PUBLIC_PATH="${BACKEND_PUBLIC_PATH:-$BACKEND_DEPLOY_PATH/public}"
+
 PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 NPM_BIN="${NPM_BIN:-npm}"
@@ -28,6 +30,8 @@ run() {
   "$@"
 }
 
+log "Laravel public directory target: $BACKEND_PUBLIC_PATH"
+
 log "Syncing Laravel backend to $BACKEND_DEPLOY_PATH"
 run mkdir -p "$BACKEND_DEPLOY_PATH"
 run rsync -a --delete \
@@ -39,6 +43,24 @@ run rsync -a --delete \
   --exclude='storage/framework/sessions' \
   --exclude='storage/logs' \
   "$BACKEND_SOURCE"/ "$BACKEND_DEPLOY_PATH"/
+
+if [[ "$BACKEND_PUBLIC_PATH" != "$BACKEND_DEPLOY_PATH/public" ]]; then
+  log "Ensuring document root proxy files in $BACKEND_PUBLIC_PATH"
+  run mkdir -p "$BACKEND_PUBLIC_PATH"
+  cat <<'PHP' >"$BACKEND_PUBLIC_PATH/index.php"
+<?php
+
+require __DIR__.'/public/index.php';
+PHP
+  cat <<'HTACCESS' >"$BACKEND_PUBLIC_PATH/.htaccess"
+DirectoryIndex public/index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+HTACCESS
+fi
 
 pushd "$BACKEND_DEPLOY_PATH" >/dev/null
   log "Installing Composer dependencies"

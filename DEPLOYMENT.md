@@ -5,7 +5,7 @@ This document explains how to publish the Laravel backend and Vite frontend to H
 ## 1. Prepare the hosting account
 
 1. **Create subdomains**
-   - `api.alawalapp.com` → document root: `/home/<cpanel-user>/public_html/api/public` (the deploy script publishes the full Laravel app in `/public_html/api` and the subdomain must point at its `public/` folder)
+   - `api.alawalapp.com` → document root: `/home/<cpanel-user>/public_html/api`. The deploy script will drop proxy `index.php` and `.htaccess` files so Apache serves the `public/` directory automatically.
    - `app.alawalapp.com` → document root: `/home/<cpanel-user>/public_html/app`
 2. **Install runtimes** (through Hostinger’s cPanel):
    - PHP 8.2 with the extensions listed in [`backend/DEPLOYMENT.md`](backend/DEPLOYMENT.md).
@@ -20,6 +20,7 @@ This document explains how to publish the Laravel backend and Vite frontend to H
 ```bash
 # Paths
 BACKEND_DEPLOY_PATH="$HOME/public_html/api"
+BACKEND_PUBLIC_PATH="$HOME/public_html/api"
 FRONTEND_PUBLIC_PATH="$HOME/public_html/app"
 
 # Executables (update if Hostinger uses different versions)
@@ -42,6 +43,8 @@ cat > ~/.cpanel/frontend.env <<'ENV'
 VITE_API_URL=https://api.alawalapp.com/api
 ENV
 ```
+
+`BACKEND_PUBLIC_PATH` should point at the subdomain’s document root. When it differs from `BACKEND_DEPLOY_PATH/public`, the deploy script writes a small proxy `.htaccess` and `index.php` so Apache still executes `public/index.php` without exposing the rest of the framework.
 
 ## 3. One-time backend preparation
 
@@ -70,7 +73,7 @@ No additional files are needed — the deploy script will publish the Vite `dist
 
 With the Git repository already configured in cPanel, every push to `main` will execute `.cpanel.yml`, which calls `deployment/cpanel/deploy.sh` to:
 
-1. Sync the Laravel source into `BACKEND_DEPLOY_PATH` without overwriting `.env` or persistent storage.
+1. Sync the Laravel source into `BACKEND_DEPLOY_PATH` without overwriting `.env` or persistent storage (and, when `BACKEND_PUBLIC_PATH` differs from `BACKEND_DEPLOY_PATH/public`, refresh the proxy `index.php`/`.htaccess` pair so the subdomain still serves `public/`).
 2. Install Composer dependencies and run framework cache optimisations.
 3. Optionally run database migrations and seeders (controlled by `RUN_MIGRATIONS` and `RUN_SEEDERS`).
 4. Build the frontend via `npm ci && npm run build`.
