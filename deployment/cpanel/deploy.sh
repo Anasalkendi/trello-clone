@@ -16,6 +16,9 @@ PHP_BIN="${PHP_BIN:-php}"
 COMPOSER_BIN="${COMPOSER_BIN:-composer}"
 NPM_BIN="${NPM_BIN:-npm}"
 
+# Allow overriding from ~/.cpanel/trello-clone.env; default to 3GB heap if not set
+NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=3072}"
+
 BACKEND_SOURCE="$ROOT_DIR/backend"
 FRONTEND_SOURCE="$ROOT_DIR/frontend"
 
@@ -42,7 +45,8 @@ run rsync -a --delete \
 
 pushd "$BACKEND_DEPLOY_PATH" >/dev/null
   log "Installing Composer dependencies"
-  run "$COMPOSER_BIN" install --no-dev --optimize-autoloader
+  # Run composer with the exact PHP binary (8.2+) so it never falls back to 8.1
+  run "$PHP_BIN" "$COMPOSER_BIN" install --no-dev --optimize-autoloader
 
   log "Running Laravel optimizations"
   run mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache
@@ -78,8 +82,9 @@ pushd "$FRONTEND_SOURCE" >/dev/null
     CLEAN_FRONTEND_ENV=true
   fi
 
-  run "$NPM_BIN" ci
-  run "$NPM_BIN" run build
+  # Use increased Node heap to avoid OOM during CI build
+  run env NODE_OPTIONS="$NODE_OPTIONS" "$NPM_BIN" ci
+  run env NODE_OPTIONS="$NODE_OPTIONS" "$NPM_BIN" run build
 
   if [[ "$CLEAN_FRONTEND_ENV" == true ]]; then
     rm -f .env.production.local
