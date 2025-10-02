@@ -8,8 +8,10 @@ declare global {
   }
 }
 
+type EchoInstance = Echo<any>;
+
 interface EchoContextValue {
-  echo?: Echo;
+  echo?: EchoInstance;
 }
 
 const EchoContext = createContext<EchoContextValue>({});
@@ -19,11 +21,11 @@ interface EchoProviderProps {
 }
 
 export const EchoProvider = ({ children }: EchoProviderProps) => {
-  const [echo, setEcho] = useState<Echo>();
+  const [echo, setEcho] = useState<EchoInstance>();
 
   useEffect(() => {
     window.Pusher = Pusher;
-    const instance = new Echo({
+    const instance: EchoInstance = new Echo({
       broadcaster: 'pusher',
       key: import.meta.env.VITE_PUSHER_KEY ?? 'local',
       wsHost: import.meta.env.VITE_WS_HOST ?? 'localhost',
