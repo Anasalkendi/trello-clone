@@ -1,17 +1,12 @@
 ---
 deployment:
   tasks:
-    # Binaries (override in ~/.cpanel/trello-clone.env if your host uses other paths)
-    - export PHP_BIN="${PHP_BIN:-php}"
-    - export COMPOSER_BIN="${COMPOSER_BIN:-composer}"
-    - export NPM_BIN="${NPM_BIN:-npm}"
+    - export PHP_BIN="${PHP_BIN:-/opt/cpanel/ea-php82/root/usr/bin/php}"
+    - export COMPOSER_BIN="${COMPOSER_BIN:-$HOME/bin/composer}"
+    - export NPM_BIN="${NPM_BIN:-/bin/npm}"
 
-    # Final deploy locations (override in ~/.cpanel/trello-clone.env if needed)
     - export BACKEND_DEPLOY_PATH="${BACKEND_DEPLOY_PATH:-$HOME/apps/chatai-backend}"
-    - export FRONTEND_PUBLIC_PATH="${FRONTEND_PUBLIC_PATH:-$HOME/domains/chatai.alawalapp.com/public_html}"
-
-    # Optional: extra config file
+    - export FRONTEND_PUBLIC_PATH="${FRONTEND_PUBLIC_PATH:-$HOME/public_html/app}"
     - export CPANEL_DEPLOY_CONFIG="${CPANEL_DEPLOY_CONFIG:-$HOME/.cpanel/trello-clone.env}"
 
-    # Run the deploy script
     - /bin/bash deployment/cpanel/deploy.sh
