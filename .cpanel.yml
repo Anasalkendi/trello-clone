@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export PATH="$HOME/bin:$PATH"
+    - export BACKEND_DEPLOY_PATH="${BACKEND_DEPLOY_PATH:-$HOME/apps/trello-backend}"
+    - export FRONTEND_PUBLIC_PATH="${FRONTEND_PUBLIC_PATH:-$HOME/domains/app.alawalapp.com/public_html}"
+    - export CPANEL_DEPLOY_CONFIG="${CPANEL_DEPLOY_CONFIG:-$HOME/.cpanel/trello-clone.env}"
+    - /bin/bash deployment/cpanel/deploy.sh
